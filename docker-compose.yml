@@ -1,0 +1,55 @@
+name: mini-soc
+
+services:
+  victim:
+    build: ./lab/victim
+    hostname: victim
+    networks: [attack_net]
+    volumes:
+      - victim_logs:/var/log/lab
+
+  # Agente: lee los logs de la víctima y los manda a la plataforma.
+  # Vive en mgmt_net (NO en attack_net): el atacante no lo ve ni lo alcanza.
+  shipper:
+    build: ./lab/shipper
+    networks: [mgmt_net]
+    environment:
+      SOC_URL: http://platform:8000/ingest
+      INGEST_API_KEY: ${INGEST_API_KEY:?Ejecuta 'make env' para generar .env}
+      LOG_FILE: /var/log/lab/auth.log
+      SOURCE_HOST: victim
+    volumes:
+      - victim_logs:/var/log/lab:ro      # solo lectura
+    depends_on: [platform]
+    restart: unless-stopped
+
+  platform:
+    build: ./platform
+    networks: [mgmt_net]
+    ports:
+      - "127.0.0.1:8000:8000"            # solo accesible desde tu máquina, no desde la LAN
+    environment:
+      INGEST_API_KEY: ${INGEST_API_KEY:?Ejecuta 'make env' para generar .env}
+      DB_PATH: /data/soc.db
+    volumes:
+      - platform_data:/data
+    restart: unless-stopped
+
+  attacker:
+    build: ./lab/attacker
+    profiles: ["attack"]                 # solo arranca cuando tú lo pides (make attack)
+    networks: [attack_net]
+    depends_on: [victim]
+
+networks:
+  # internal: true = sin salida a internet. El atacante y la víctima quedan
+  # encerrados; no pueden tocar la plataforma ni el mundo exterior.
+  attack_net:
+    driver: bridge
+    internal: true
+  mgmt_net:
+    driver: bridge
+
+volumes:
+  victim_logs:
+  platform_data:

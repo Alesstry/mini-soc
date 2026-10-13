@@ -1,0 +1,18 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tests de la plataforma
+        working-directory: platform
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest -q
+      - name: Validar docker-compose
+        run: INGEST_API_KEY=ci-dummy-key-0123456789 docker compose --profile attack config -q

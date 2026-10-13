@@ -1,0 +1,6 @@
+Port 22
+PasswordAuthentication yes
+PermitRootLogin no
+UsePAM yes
+LogLevel INFO
+SyslogFacility AUTH
